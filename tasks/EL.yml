@@ -1,0 +1,40 @@
+---
+# tasks file for sardpost.elasticsearch
+# Tasks specific for RHEL/Centos systems
+
+- name: RHEL/Centos | Importing rpm GPG key for elasticsearch repository
+  rpm_key: state=present key=https://packages.elastic.co/GPG-KEY-elasticsearch
+
+- name: "RHEL/Centos | Installing elasticsearch repository"
+  template: "src=elasticsearch.repo.j2
+            dest=/etc/yum.repos.d/elasticsearch.repo
+            owner=root
+            group=root
+            mode=0644"
+  tags:
+    - elasticsearch
+    - init
+
+- name: "RHEL/Centos | Enabling elasticsearch data repository"
+  ini_file: dest=/etc/yum.repos.d/elasticsearch.repo section=elasticsearch option=enabled value=1
+
+- name: "RHEL/Centos | Installing elasticsearch"
+  yum: name={{ item }} state=present
+  with_items:
+    - elasticsearch
+  tags:
+    - elasticsearch
+    - init
+
+- name: "RHEL/Centos | Reloading systemd"
+  command: systemctl daemon-reload
+
+#Sometimes elasticsearch failed to start with Access Denied Error attempting to
+#write in /var/lib/elasticsearch/elasticsearch/ directory. This task ensures
+#that the elasticsearch user is the owner of the directory /var/lib/elasticsearch/ 
+- name: "RHEL/Centos | Ensuring /var/lib/elasticsearch/ belongs to elasticsearch user"
+  file: path=/var/lib/elasticsearch/ state=directory owner=elasticsearch recurse=yes
+
+- name: "RHEL/Centos | Enabling and starting elasticsearch service"
+  service: name=elasticsearch state=started enabled=yes
+  tags: elasticsearch
